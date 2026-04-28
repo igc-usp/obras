@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Obras — IGc/USP</title><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel de Obras — IGc/USP</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -714,26 +719,1141 @@ function saveData(){
   saveLocal();
   downloadHTML();
 }
-function downloadHTML(){
-  // Gera o HTML completo com dados atualizados sem depender do servidor
+async function downloadHTML(){
+  // Fetch the original HTML from the server (not outerHTML which browser corrupts)
+  let src;
+  try{
+    const resp = await fetch(location.href + '?nc=' + Date.now());
+    src = await resp.text();
+  }catch(e){
+    toast('⚠️ Erro ao buscar HTML do servidor: ' + e.message);
+    return;
+  }
+  // Replace the <script id="dados"> content with current DATA
   const dataStr = JSON.stringify(DATA, null, 2);
-  // Substitui o bloco <script id="dados"> no HTML atual da página
-  const src = document.documentElement.outerHTML;
-  // Remove duplicações acumuladas: pega apenas do último <!DOCTYPE em diante
-  const docs = [...src.matchAll(/<!DOCTYPE/gi)].map(m=>m.index);
-  const cleanSrc = docs.length > 1 ? src.slice(docs[docs.length-1]) : src;
-  // Substitui o conteúdo do script de dados
-  const updated = cleanSrc.replace(
+  const updated = src.replace(
     /(<script[^>]+id="dados"[^>]*>)[\s\S]*?(<\/script>)/,
     (_, open, close) => open + '\n' + dataStr + '\n' + close
   );
+  // Verify replacement worked
+  if(!updated.includes(dataStr.slice(0,50))){
+    toast('⚠️ Não foi possível atualizar os dados no HTML.');
+    return;
+  }
   const blob = new Blob([updated], {type:'text/html;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'index.html';
+  a.download = 'painel_obras_igc.html';
   a.click();
   URL.revokeObjectURL(a.href);
-  toast('💾 index.html baixado! Suba no GitHub para publicar.');
+  toast('💾 HTML atualizado baixado! Suba no Netlify para publicar.');
+}
+
+// ── SYNC ─────────────────────────────────────────────────────
+async function syncServer(){
+  if(!confirm('Substituir dados locais pelos do servidor?')) return;
+  const btn=document.getElementById('syncbtn');
+  btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
+  try{
+    const r=await fetch(location.href+'?nc='+Date.now());
+    const txt=await r.text();
+    const m=txt.match(/const EMBEDDED_DATA = (\{[\s\S]*?\});\s*\/\/ END_DATA/);
+    if(m){
+      DATA=JSON.parse(m[1]);
+      saveLocal();
+      renderAll();
+      toast('✅ Dados sincronizados do servidor');
+    } else { toast('⚠️ Não foi possível ler dados do servidor'); }
+  }catch(e){ toast('⚠️ Erro: '+e.message); }
+  finally{ btn.textContent='🔄';btn.disabled=false; }
+}
+
+// ── HELPERS ──────────────────────────────────────────────────
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);
+}
+function fmtDate(d){
+  if(!d) return '—';
+  const [y,m,day]=d.split('-');
+  return `${day}/${m}/${y}`;
+}
+function daysLbl(d,tipo){
+  if(!d) return '';
+  const today=new Date();today.setHours(0,0,0,0);
+  const dt=new Date(d+'T00:00:00');
+  const diff=Math.round((dt-today)/86400000);
+  if(diff<0) return tipo==='ok'?` (há ${Math.abs(diff)}d)`:` (${Math.abs(diff)}d de atraso)`;
+  if(diff===0) return ' (hoje)';
+  if(diff<=7) return ` (em ${diff}d)`;
+  return '';
+}
+function pColor(p){
+  if(p>=80) return '#1D9E75';
+  if(p>=40) return '#378ADD';
+  if(p>=20) return '#EF9F27';
+  return '#E24B4A';
+}
+function avInit(n){
+  return n.replace(/\b(de|da|do|dos|das|e)\b/gi,'').trim()
+    .split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+}
+function esc(s){
+  return (s||'').toString()
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function O(id){ return DATA.obras.find(x=>x.id===id); }
+
+// ── TABS ─────────────────────────────────────────────────────
+function setTab(t,el){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('act'));
+  el.classList.add('act');
+  ['obras','contatos','historico'].forEach(id=>{
+    document.getElementById('tab-'+id).style.display=id===t?'block':'none';
+  });
+  if(t==='contatos') renderContacts();
+  if(t==='historico') renderHistory();
+}
+
+// ── RENDER ALL ───────────────────────────────────────────────
+function renderAll(){
+  renderCards();
+  if(selId) renderDetail(selId);
+  else document.getElementById('detail').innerHTML='';
+}
+
+// ── CARDS ────────────────────────────────────────────────────
+function renderCards(){
+  const ativas=DATA.obras.filter(o=>o.status!=='concluida');
+  const g=document.getElementById('cgrid');
+  if(!ativas.length){g.innerHTML='<div style="color:var(--text3);font-size:13px;padding:1rem">Nenhuma frente ativa.</div>';return;}
+  g.innerHTML=ativas.map(o=>{
+    const s=SM[o.status]||{l:o.status,c:'bag'};
+    const pd=o.datas&&o.datas.find(d=>d.data);
+    const dH=pd?`<div style="margin-top:5px"><span class="cdate d${pd.tipo}">📅 ${esc(pd.label)}: ${fmtDate(pd.data)}${daysLbl(pd.data,pd.tipo)}</span></div>`:'';
+    const sfH=o.subfrentes&&o.subfrentes.length?`<div class="subfs">${o.subfrentes.map(sf=>`<div class="subf"><span>${esc(sf.label)}</span><span class="badge ${SM[sf.status]?.c||'bag'}" style="font-size:9px;padding:2px 7px">${SM[sf.status]?.l||sf.status}</span></div>`).join('')}</div>`:'';
+    return `<div class="card${selId===o.id?' sel':''}" onclick="selCard(${o.id})">
+      <div class="chd"><div class="ctitle">${esc(o.titulo)}</div><span class="badge ${s.c}">${s.l}</span></div>
+      ${o.contratada?`<div class="cmeta">🏢 ${esc(o.contratada)}</div>`:''}
+      ${o.inicio?`<div class="cmeta">📆 Início: ${esc(o.inicio)}${o.prazo?' · '+esc(o.prazo):''}</div>`:''}
+      <div class="pbar"><div class="pfill" style="width:${o.progresso}%;background:${pColor(o.progresso)}"></div></div>
+      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:-2px">${o.progresso}%</div>
+      ${dH}${sfH}
+    </div>`;
+  }).join('');
+}
+
+function selCard(id){
+  selId=selId===id?null:id;
+  renderAll();
+  if(selId) setTimeout(()=>document.getElementById('detail').scrollIntoView({behavior:'smooth',block:'start'}),60);
+}
+
+// ── DETAIL ───────────────────────────────────────────────────
+function renderDetail(id){
+  const o=O(id);
+  if(!o){document.getElementById('detail').innerHTML='';return;}
+  const E=mode==='editor';
+  const s=SM[o.status]||{l:o.status,c:'bag'};
+  const sOpts=STATUS_OPTS.map(k=>`<option value="${k}"${o.status===k?' selected':''}>${SM[k].l}</option>`).join('');
+
+  const dH=(o.datas||[]).map((d,i)=>E?`
+    <div class="drow">
+      <input class="finp" style="flex:2;min-width:110px" value="${esc(d.label)}" oninput="O(${id}).datas[${i}].label=this.value" placeholder="Rótulo">
+      <input type="date" class="finp" style="width:140px" value="${d.data||''}" oninput="O(${id}).datas[${i}].data=this.value;renderCards()">
+      <select class="fsel" style="width:90px" onchange="O(${id}).datas[${i}].tipo=this.value">
+        ${['ok','alerta','critico','neutro'].map(t=>`<option value="${t}"${d.tipo===t?' selected':''}>${t}</option>`).join('')}
+      </select>
+      <button class="delbtn" onclick="rmArr(${id},'datas',${i})">×</button>
+    </div>`
+    :`<div style="margin-bottom:5px"><span class="cdate d${d.tipo}">📅 ${esc(d.label)}: ${fmtDate(d.data)}${daysLbl(d.data,d.tipo)}</span></div>`
+  ).join('');
+
+  const lH=(o.links||[]).map((l,i)=>E?`
+    <div class="lrow">
+      <input class="finp" style="flex:1" value="${esc(l.label)}" oninput="O(${id}).links[${i}].label=this.value" placeholder="Nome">
+      <input class="finp" style="flex:2" value="${esc(l.url)}" oninput="O(${id}).links[${i}].url=this.value" placeholder="URL">
+      <button class="delbtn" onclick="rmArr(${id},'links',${i})">×</button>
+    </div>`
+    :`<div class="lrow" style="margin-bottom:5px">🔗 <a href="${esc(l.url)||'#'}" target="_blank">${esc(l.label)}</a></div>`
+  ).join('');
+
+  const cH=(o.contatos_ids||[]).map(cid=>{
+    const c=DATA.contatos.find(x=>x.id===cid);
+    if(!c) return '';
+    return `<div class="ccard">
+      <div class="av">${avInit(c.nome)}</div>
+      <div class="cinfo">
+        <div class="cname">${esc(c.nome)}</div>
+        <div class="crole">${esc(c.cargo)}</div>
+        <div class="cdet">${[c.empresa,c.tel,c.email].filter(Boolean).map(esc).join(' · ')}</div>
+      </div>
+      <div class="cacts">
+        ${c.tel?`<button class="cbtn" onclick="cp('${esc(c.tel)}','Tel copiado')">📞</button>`:''}
+        ${c.email?`<button class="cbtn" onclick="cp('${esc(c.email)}','E-mail copiado')">✉</button>`:''}
+        ${E?`<button class="cbtn" style="color:var(--vmt)" onclick="rmCLink(${id},${cid})">Remover</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  const sfE=E&&o.subfrentes&&o.subfrentes.length?o.subfrentes.map((sf,i)=>`
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">
+      <input class="finp" style="flex:2" value="${esc(sf.label)}" oninput="O(${id}).subfrentes[${i}].label=this.value">
+      <select class="fsel" style="width:125px" onchange="O(${id}).subfrentes[${i}].status=this.value;renderCards()">
+        ${STATUS_OPTS.map(k=>`<option value="${k}"${sf.status===k?' selected':''}>${SM[k].l}</option>`).join('')}
+      </select>
+      <button class="delbtn" onclick="rmArr(${id},'subfrentes',${i})">×</button>
+    </div>`).join('')
+    :(!E&&o.subfrentes&&o.subfrentes.length?o.subfrentes.map(sf=>`<div class="subf" style="margin-bottom:4px"><span>${esc(sf.label)}</span><span class="badge ${SM[sf.status]?.c||'bag'}">${SM[sf.status]?.l||sf.status}</span></div>`).join(''):'');
+
+  const fH=E?`<div class="pgrid">
+    ${(o.fotos||[]).map((f,i)=>`<div style="position:relative;display:inline-block">
+      <img class="pthumb" src="${f.url||f.data||''}" title="${esc(f.nome)}" onclick="document.getElementById('pmo-img').src='${f.url||f.data||''}';document.getElementById('pmo').classList.add('open')">
+      <button onclick="rmFoto(${id},${i})" style="position:absolute;top:2px;right:2px;background:rgba(163,45,45,.85);color:#fff;border:none;border-radius:3px;font-size:10px;padding:1px 5px;cursor:pointer">×</button>
+    </div>`).join('')}
+    <label class="pph">+ foto<input type="file" accept="image/*" multiple style="display:none" onchange="addFotos(${id},this)"></label>
+  </div>`
+  :`<div class="pgrid">${(o.fotos||[]).map(f=>`<img class="pthumb" src="${f.url||f.data||''}" title="${esc(f.nome)}" onclick="document.getElementById('pmo-img').src='${f.url||f.data||''}';document.getElementById('pmo').classList.add('open')">`).join('')}${!(o.fotos||[]).length?'<span style="font-size:12px;color:var(--text3)">Sem fotos</span>':''}</div>`;
+
+  const avail=DATA.contatos.filter(c=>!(o.contatos_ids||[]).includes(c.id));
+
+  document.getElementById('detail').innerHTML=`
+  <div class="dp">
+    <div class="dptop">
+      <div style="flex:1;margin-right:12px">
+        ${E?`<input class="finp" style="font-size:15px;font-weight:600;width:100%;margin-bottom:6px" value="${esc(o.titulo)}" oninput="O(${id}).titulo=this.value;renderCards()" placeholder="Nome da frente">`:`<div class="dptitle">${esc(o.titulo)}</div>`}
+        <span class="badge ${s.c}" style="display:inline-block;margin-top:4px">${s.l}</span>
+      </div>
+      <button class="xbtn" onclick="selCard(${id})">×</button>
+    </div>
+
+    <div class="sec">Status e progresso</div>
+    <div class="two">
+      <div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Status</div>
+        ${E?`<select class="fsel" onchange="O(${id}).status=this.value;renderCards()">${sOpts}</select>`:`<span class="badge ${s.c}">${s.l}</span>`}
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Progresso físico</div>
+        ${E?`<div style="display:flex;align-items:center;gap:8px"><input type="range" min="0" max="100" step="1" value="${o.progresso}" oninput="O(${id}).progresso=+this.value;document.getElementById('pv${id}').textContent=this.value+'%';renderCards()" style="flex:1"><span id="pv${id}" style="font-size:12px;font-weight:600;min-width:34px">${o.progresso}%</span></div>`
+        :`<div style="display:flex;align-items:center;gap:8px"><div class="pbar" style="flex:1;height:6px;margin:0"><div class="pfill" style="width:${o.progresso}%;background:${pColor(o.progresso)}"></div></div><span style="font-size:12px;font-weight:600">${o.progresso}%</span></div>`}
+      </div>
+    </div>
+
+    <div class="sec">Informações gerais</div>
+    <div class="frow"><div class="flbl">Contratada</div>${E?`<input class="finp" value="${esc(o.contratada||'')}" oninput="O(${id}).contratada=this.value">`:`<div class="fval">${esc(o.contratada)||'—'}</div>`}</div>
+    <div class="frow"><div class="flbl">Data de início</div>${E?`<input class="finp" value="${esc(o.inicio||'')}" oninput="O(${id}).inicio=this.value" placeholder="dd/mm/aaaa">`:`<div class="fval">${esc(o.inicio)||'—'}</div>`}</div>
+    <div class="frow"><div class="flbl">Prazo contratual</div>${E?`<input class="finp" value="${esc(o.prazo||'')}" oninput="O(${id}).prazo=this.value" placeholder="ex: 90 dias">`:`<div class="fval">${esc(o.prazo)||'—'}</div>`}</div>
+    <div class="frow"><div class="flbl">Observações</div>${E?`<textarea class="fta" oninput="O(${id}).descricao=this.value">${esc(o.descricao||'')}</textarea>`:`<div class="fval" style="color:var(--text2)">${esc(o.descricao||'—').replace(/\n/g,'<br>')}</div>`}</div>
+
+    <div class="sec">Datas críticas e marcos</div>
+    <div>${dH||`<span style="font-size:13px;color:var(--text3)">Nenhuma data cadastrada</span>`}</div>
+    ${E?`<button class="addbtn" onclick="addArr(${id},'datas',{label:'Nova data',data:'',tipo:'neutro'})">+ Adicionar data</button>`:''}
+
+    <div class="sec">Links e documentos</div>
+    <div>${lH||`<span style="font-size:13px;color:var(--text3)">Nenhum link</span>`}</div>
+    ${E?`<button class="addbtn" onclick="addArr(${id},'links',{label:'Novo link',url:''})">+ Adicionar link</button>`:''}
+
+    ${(o.subfrentes&&o.subfrentes.length)||E?`
+    <div class="sec">Subfrentes</div>
+    <div>${sfE}</div>
+    ${E?`<button class="addbtn" onclick="addArr(${id},'subfrentes',{label:'Nova subfrente',status:'aguard'})">+ Adicionar subfrente</button>`:''}`:''}
+
+    <div class="sec">Registros fotográficos</div>
+    ${fH}
+
+    <div class="sec">Contatos vinculados</div>
+    <div>${cH||`<span style="font-size:13px;color:var(--text3)">Nenhum contato vinculado</span>`}</div>
+    ${E&&avail.length?`<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${avail.map(c=>`<button class="addbtn" style="border:.5px solid var(--border);padding:3px 10px;border-radius:20px" onclick="addCLink(${id},${c.id})">+ ${esc(c.nome)}</button>`).join('')}</div>`:''}
+
+    ${E?`<div class="arow">
+      <button class="savbtn" onclick="saveData()">💾 Salvar e publicar</button>
+      ${o.status!=='concluida'?`<button class="arcbtn" onclick="arquivar(${id})">Mover para histórico</button>`:''}
+    </div>`:''}
+  </div>`;
+}
+
+// ── DATA MUTATIONS ───────────────────────────────────────────
+function addArr(id,arr,item){ const o=O(id);if(o){o[arr]=o[arr]||[];o[arr].push(item);}renderDetail(id); }
+function rmArr(id,arr,i){ const o=O(id);if(o)o[arr].splice(i,1);renderDetail(id); }
+function addCLink(id,cid){ const o=O(id);if(o&&!o.contatos_ids.includes(cid))o.contatos_ids.push(cid);renderDetail(id); }
+function rmCLink(id,cid){ const o=O(id);if(o)o.contatos_ids=o.contatos_ids.filter(x=>x!==cid);renderDetail(id); }
+function arquivar(id){
+  const o=O(id);if(!o)return;
+  if(!confirm(`Mover "${o.titulo}" para o histórico?`))return;
+  DATA.historico.unshift({data:new Date().toLocaleDateString('pt-BR'),titulo:o.titulo+' — arquivada',descricao:o.descricao||''});
+  o.status='concluida';
+  selId=null;
+  saveData();
+  renderAll();
+}
+function novaFrente(){
+  const nid=Math.max(0,...DATA.obras.map(o=>o.id))+1;
+  DATA.obras.push({id:nid,titulo:'Nova frente de trabalho',contratada:'',status:'planejamento',prazo:'',inicio:'',descricao:'',datas:[],links:[],contatos_ids:[],subfrentes:[],progresso:0,fotos:[]});
+  selId=nid;
+  renderAll();
+  setTimeout(()=>document.getElementById('detail').scrollIntoView({behavior:'smooth',block:'start'}),80);
+}
+
+// ── PHOTOS ───────────────────────────────────────────────────
+async function addFotos(id,input){
+  const o=O(id);if(!o)return;
+  o.fotos=o.fotos||[];
+  const files=Array.from(input.files);
+  if(!files.length)return;
+  toast('⏳ Enviando '+files.length+' foto(s)...');
+  let done=0;
+  for(const file of files){
+    try{
+      const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
+      const resp=await fetch('https://api.imgur.com/3/image',{method:'POST',headers:{'Authorization':'Client-ID 546c25a59c58ad7','Content-Type':'application/json'},body:JSON.stringify({image:b64,type:'base64',name:file.name})});
+      const json=await resp.json();
+      if(json.success){o.fotos.push({nome:file.name,url:json.data.link,deleteHash:json.data.deletehash});done++;}
+      else toast('⚠️ Erro: '+file.name);
+    }catch(e){toast('⚠️ Falha: '+e.message);}
+  }
+  if(done>0){saveLocal();toast('✅ '+done+' foto(s) salva(s)');}
+  renderDetail(id);
+}
+async function rmFoto(id,i){
+  const o=O(id);if(!o||!o.fotos[i])return;
+  if(!confirm('Excluir esta foto?'))return;
+  const f=o.fotos[i];
+  if(f.deleteHash){try{await fetch('https://api.imgur.com/3/image/'+f.deleteHash,{method:'DELETE',headers:{'Authorization':'Client-ID 546c25a59c58ad7'}});}catch(e){}}
+  o.fotos.splice(i,1);
+  saveLocal();renderDetail(id);
+}
+
+// ── CONTACTS TAB ─────────────────────────────────────────────
+function renderContacts(){
+  const E=mode==='editor';
+  document.getElementById('tab-contatos').innerHTML=`<div class="dp">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="sec" style="margin:0;border:none;padding:0">Todos os contatos</div>
+      ${E?`<div style="display:flex;gap:8px">
+        <button class="addbtn" onclick="addContato()">+ Novo contato</button>
+        <button class="savbtn" style="font-size:12px;padding:5px 14px" onclick="saveLocal();toast('Contatos salvos localmente')">💾</button>
+      </div>`:''}
+    </div>
+    ${E?`<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Use ▲ ▼ para reordenar · 🗑 para excluir</div>`:''}
+    ${DATA.contatos.map((c,idx)=>{
+      const ini=avInit(c.nome);
+      const isF=idx===0, isL=idx===DATA.contatos.length-1;
+      return `<div class="ccard">
+        ${E?`<div style="display:flex;flex-direction:column;gap:2px;margin-right:6px">
+          <button class="cbtn" style="padding:2px 7px;font-size:13px;${isF?'opacity:.25;pointer-events:none':''}" onclick="moveContact(${idx},-1)">▲</button>
+          <button class="cbtn" style="padding:2px 7px;font-size:13px;${isL?'opacity:.25;pointer-events:none':''}" onclick="moveContact(${idx},1)">▼</button>
+        </div>`:''}
+        <div class="av">${ini}</div>
+        <div class="cinfo" style="flex:2">
+          ${E?`<input class="finp" value="${esc(c.nome)}" oninput="DATA.contatos[${idx}].nome=this.value" style="margin-bottom:5px">
+          <input class="finp" value="${esc(c.cargo||'')}" oninput="DATA.contatos[${idx}].cargo=this.value" placeholder="Cargo" style="margin-bottom:5px">
+          <input class="finp" value="${esc(c.empresa||'')}" oninput="DATA.contatos[${idx}].empresa=this.value" placeholder="Empresa">`
+          :`<div class="cname">${esc(c.nome)}</div><div class="crole">${esc(c.cargo||'')}</div><div class="cdet">${esc(c.empresa||'')}</div>`}
+        </div>
+        <div style="flex:1.5;display:flex;flex-direction:column;gap:5px">
+          ${E?`<input class="finp" value="${esc(c.tel||'')}" oninput="DATA.contatos[${idx}].tel=this.value" placeholder="Telefone">
+          <input class="finp" value="${esc(c.email||'')}" oninput="DATA.contatos[${idx}].email=this.value" placeholder="E-mail">`
+          :`<div style="font-size:12px;color:var(--text2)">${c.tel?'📞 '+esc(c.tel):'—'}</div>
+          <div style="font-size:12px;color:var(--text2)">${c.email?'✉ '+esc(c.email):'—'}</div>`}
+        </div>
+        <div class="cacts">
+          ${!E&&c.tel?`<button class="cbtn" onclick="cp('${esc(c.tel)}','Tel copiado')">📞</button>`:''}
+          ${!E&&c.email?`<button class="cbtn" onclick="cp('${esc(c.email)}','E-mail copiado')">✉</button>`:''}
+          ${E?`<button class="cbtn" style="color:var(--vmt)" onclick="deleteContact(${idx})" title="Excluir">🗑</button>`:''}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+function addContato(){
+  const nid=Math.max(0,...DATA.contatos.map(c=>c.id))+1;
+  DATA.contatos.push({id:nid,nome:'Novo contato',cargo:'',tel:'',email:'',empresa:''});
+  renderContacts();
+}
+function moveContact(idx,dir){
+  const a=DATA.contatos,t=idx+dir;
+  if(t<0||t>=a.length)return;
+  [a[idx],a[t]]=[a[t],a[idx]];
+  renderContacts();
+}
+function deleteContact(idx){
+  const c=DATA.contatos[idx];
+  if(!confirm(`Excluir "${c.nome}"?`))return;
+  const cid=c.id;
+  DATA.contatos.splice(idx,1);
+  DATA.obras.forEach(o=>o.contatos_ids=o.contatos_ids.filter(x=>x!==cid));
+  saveLocal();renderContacts();
+}
+
+// ── HISTORY TAB ──────────────────────────────────────────────
+function renderHistory(){
+  const conc=DATA.obras.filter(o=>o.status==='concluida');
+  document.getElementById('tab-historico').innerHTML=`<div class="dp">
+    <div class="sec" style="margin-top:0">Obras concluídas e eventos arquivados</div>
+    ${conc.map(o=>`<div class="hitem">
+      <div class="hdate">Concluída</div>
+      <div class="htitle">✅ ${esc(o.titulo)}</div>
+      ${o.contratada?`<div class="hdesc">Contratada: ${esc(o.contratada)}</div>`:''}
+      ${o.inicio?`<div class="hdesc">Início: ${esc(o.inicio)}</div>`:''}
+      ${(o.datas||[]).filter(d=>d.data).map(d=>`<div class="hdesc">📅 ${esc(d.label)}: ${fmtDate(d.data)}</div>`).join('')}
+      ${o.descricao?`<div class="hdesc">${esc(o.descricao)}</div>`:''}
+    </div>`).join('')}
+    ${DATA.historico.map(i=>`<div class="hitem">
+      <div class="hdate">${esc(i.data)}</div>
+      <div class="htitle">${esc(i.titulo)}</div>
+      ${i.descricao?`<div class="hdesc">${esc(i.descricao)}</div>`:''}
+    </div>`).join('')}
+    ${!conc.length&&!DATA.historico.length?'<div style="font-size:13px;color:var(--text3)">Nenhum item no histórico.</div>':''}
+  </div>`;
+}
+
+// ── UTILS ────────────────────────────────────────────────────
+function cp(t,msg){
+  if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>toast(msg||'Copiado!'));
+  else{const el=document.createElement('input');el.value=t;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);toast(msg||'Copiado!');}
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+DATA = loadData();
+mode = sessionStorage.getItem('igc_ed')==='1' ? 'editor' : 'viewer';
+applyMode();
+</script>
+</body>
+</html>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#ffffff;--bg2:#f7f7f5;--bg3:#f1efe8;
+  --text:#1a1a18;--text2:#5f5e5a;--text3:#888780;
+  --border:rgba(0,0,0,0.12);--border2:rgba(0,0,0,0.25);
+  --r:8px;--rlg:12px;
+  --az:#185FA5;--azl:#E6F1FB;--azt:#0C447C;
+  --vd:#3B6D11;--vdl:#EAF3DE;--vdt:#27500A;
+  --am:#854F0B;--aml:#FAEEDA;--amt:#633806;
+  --vm:#A32D2D;--vml:#FCEBEB;--vmt:#791F1F;
+  --gz:#5F5E5A;--gzl:#F1EFE8;--gzt:#444441;
+  --tl:#0F6E56;--tll:#E1F5EE;--tlt:#085041;
+  --font:'Segoe UI',system-ui,sans-serif;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#1c1c1a;--bg2:#252523;--bg3:#2e2e2b;
+  --text:#f0ede6;--text2:#a8a69f;--text3:#6b6966;
+  --border:rgba(255,255,255,0.11);--border2:rgba(255,255,255,0.22);
+  --az:#378ADD;--azl:#0C2D4A;--azt:#85B7EB;
+  --vd:#639922;--vdl:#1a3009;--vdt:#97C459;
+  --am:#EF9F27;--aml:#3d2504;--amt:#FAC775;
+  --vm:#E24B4A;--vml:#3d0f0f;--vmt:#F09595;
+  --gz:#888780;--gzl:#2c2c2a;--gzt:#D3D1C7;
+  --tl:#1D9E75;--tll:#042e22;--tlt:#5DCAA5;
+}}
+body{font-family:var(--font);background:var(--bg3);color:var(--text);min-height:100vh}
+a{color:var(--az)}
+.app{max-width:1100px;margin:0 auto;padding:1.25rem 1rem}
+
+/* HEADER */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:.875rem 1.25rem;background:var(--bg);border:.5px solid var(--border);border-radius:var(--rlg);margin-bottom:1.25rem;flex-wrap:wrap;gap:10px}
+.hdrl{display:flex;align-items:center;gap:12px}
+.logo{width:40px;height:40px;background:#185FA5;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo svg{width:22px;height:22px;fill:#fff}
+.htitle{font-size:15px;font-weight:600;color:var(--text)}
+.hsub{font-size:12px;color:var(--text2)}
+.hdrr{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mbadge{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500}
+.mbe{background:var(--azl);color:var(--azt)}
+.mbv{background:var(--vdl);color:var(--vdt)}
+.mbtn{padding:6px 14px;font-size:12px;border:.5px solid var(--border2);border-radius:var(--r);cursor:pointer;background:var(--bg);color:var(--text2);font-family:var(--font);transition:.15s}
+.mbtn:hover{background:var(--bg2)}
+.mbtn.act{background:var(--azl);color:var(--azt);border-color:var(--az);font-weight:600}
+
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:1.25rem}
+.tab{padding:8px 18px;font-size:13px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:.15s;user-select:none}
+.tab:hover{color:var(--text)}
+.tab.act{color:var(--az);border-bottom-color:var(--az);font-weight:600}
+
+/* GRID */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(295px,1fr));gap:12px;margin-bottom:1.25rem}
+
+/* CARD */
+.card{background:var(--bg);border:.5px solid var(--border);border-radius:var(--rlg);padding:1rem 1.125rem;cursor:pointer;transition:.15s}
+.card:hover{border-color:var(--border2)}
+.card.sel{border-color:var(--az);border-width:1.5px;box-shadow:0 0 0 3px rgba(24,95,165,.08)}
+.chd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;gap:8px}
+.ctitle{font-size:13px;font-weight:600;color:var(--text);line-height:1.4;flex:1}
+.badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.bem{background:var(--azl);color:var(--azt)}
+.bok{background:var(--vdl);color:var(--vdt)}
+.bal{background:var(--aml);color:var(--amt)}
+.bcr{background:var(--vml);color:var(--vmt)}
+.bag{background:var(--gzl);color:var(--gzt)}
+.bfi{background:var(--tll);color:var(--tlt)}
+.cmeta{font-size:12px;color:var(--text2);margin-bottom:3px}
+.pbar{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin:7px 0 3px}
+.pfill{height:100%;border-radius:2px;transition:.3s}
+.cdate{font-size:11px;padding:3px 8px;border-radius:4px;display:inline-flex;align-items:center;gap:4px;font-weight:500;margin-top:4px}
+.dok{background:#EAF3DE;color:#27500A}
+.dalerta{background:#FAEEDA;color:#633806}
+.dcritico{background:#FCEBEB;color:#791F1F}
+.dneutro{background:#F1EFE8;color:#444441}
+.subfs{margin-top:7px;display:flex;flex-direction:column;gap:3px}
+.subf{font-size:11px;padding:3px 8px;border-radius:4px;background:var(--bg2);color:var(--text2);display:flex;justify-content:space-between;align-items:center;gap:8px}
+
+/* DETAIL */
+.dp{background:var(--bg);border:.5px solid var(--border);border-radius:var(--rlg);padding:1.5rem;margin-bottom:1.25rem}
+.dptop{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;gap:12px}
+.dptitle{font-size:16px;font-weight:600;color:var(--text);flex:1;line-height:1.3}
+.xbtn{background:none;border:none;font-size:22px;color:var(--text3);cursor:pointer;padding:0;line-height:1}
+.sec{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin:1.25rem 0 8px;padding-bottom:4px;border-bottom:.5px solid var(--border)}
+.frow{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+.flbl{font-size:12px;color:var(--text2);min-width:110px;padding-top:4px;flex-shrink:0}
+.fval{font-size:13px;color:var(--text);flex:1;line-height:1.55}
+.finp{width:100%;font-size:13px;padding:6px 10px;border:.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);color:var(--text);font-family:var(--font);outline:none}
+.finp:focus{border-color:var(--az)}
+.fsel{width:100%;font-size:13px;padding:6px 10px;border:.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);color:var(--text);font-family:var(--font);outline:none}
+.fta{width:100%;font-size:13px;padding:8px 10px;border:.5px solid var(--border2);border-radius:var(--r);background:var(--bg2);color:var(--text);font-family:var(--font);resize:vertical;min-height:72px;outline:none;line-height:1.5}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:580px){.two{grid-template-columns:1fr}}
+.drow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.lrow{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.addbtn{font-size:12px;color:var(--az);cursor:pointer;background:none;border:none;font-family:var(--font);font-weight:500;padding:3px 0}
+.addbtn:hover{text-decoration:underline}
+.savbtn{padding:7px 18px;font-size:13px;background:var(--az);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-weight:600;font-family:var(--font)}
+.savbtn:hover{background:#0F4A8A}
+.arcbtn{padding:7px 18px;font-size:13px;background:var(--bg2);color:var(--text2);border:.5px solid var(--border2);border-radius:var(--r);cursor:pointer;font-family:var(--font)}
+.delbtn{background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer;line-height:1;padding:0 3px}
+.delbtn:hover{color:var(--vm)}
+.arow{margin-top:1.5rem;padding-top:1rem;border-top:.5px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* CONTACTS */
+.ccard{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:.5px solid var(--border)}
+.ccard:last-child{border-bottom:none}
+.av{width:34px;height:34px;border-radius:50%;background:var(--azl);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--azt);flex-shrink:0}
+.cinfo{flex:1;min-width:0}
+.cname{font-size:13px;font-weight:600;color:var(--text)}
+.crole{font-size:11px;color:var(--text2)}
+.cdet{font-size:11px;color:var(--text3);margin-top:1px}
+.cacts{display:flex;gap:5px;flex-wrap:wrap}
+.cbtn{padding:4px 10px;font-size:11px;border:.5px solid var(--border2);border-radius:var(--r);cursor:pointer;background:var(--bg);color:var(--text2);font-family:var(--font)}
+.cbtn:hover{background:var(--bg2)}
+
+/* HISTORY */
+.hitem{padding:10px 0;border-bottom:.5px solid var(--border)}
+.hitem:last-child{border-bottom:none}
+.hdate{font-size:11px;color:var(--text3);margin-bottom:2px}
+.htitle{font-size:13px;font-weight:600;color:var(--text)}
+.hdesc{font-size:12px;color:var(--text2);margin-top:2px;line-height:1.4}
+
+/* PHOTOS */
+.pgrid{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.pthumb{width:80px;height:60px;object-fit:cover;border-radius:var(--r);border:.5px solid var(--border);cursor:pointer}
+.pph{width:80px;height:60px;border:1px dashed var(--border2);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text3);cursor:pointer;background:var(--bg2)}
+
+/* MODAL */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center}
+.mo.open{display:flex}
+.mo img{max-width:90vw;max-height:85vh;border-radius:var(--rlg)}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:#1a1a18;color:#f0ede6;padding:10px 18px;border-radius:var(--r);font-size:13px;font-weight:500;opacity:0;transition:opacity .2s;z-index:9999;pointer-events:none;max-width:340px}
+.toast.show{opacity:1}
+
+/* MISC */
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--az);border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+input[type=range]{accent-color:var(--az)}
+</style>
+<script id="dados" type="application/json">
+{
+  "obras": [
+    {
+      "id": 1,
+      "titulo": "Reforma da Cobertura",
+      "contratada": "SCOPUS CONSTRUTORA & INCORPORADORA LTDA",
+      "status": "assinatura",
+      "prazo": "",
+      "inicio": "",
+      "descricao": "Aguardando indicação do Fiscal Técnico pela SEF para agendar a Reunião de Início das Obras.",
+      "datas": [
+        {
+          "label": "Assinatura do contrato",
+          "data": "2026-04-23",
+          "tipo": "ok"
+        },
+        {
+          "label": "Reunião de início de obras",
+          "data": "",
+          "tipo": "neutro"
+        }
+      ],
+      "links": [
+        {
+          "label": "",
+          "url": ""
+        },
+        {
+          "label": "",
+          "url": ""
+        }
+      ],
+      "contatos_ids": [
+        1
+      ],
+      "subfrentes": [],
+      "progresso": 0,
+      "fotos": []
+    },
+    {
+      "id": 2,
+      "titulo": "Reforma do Revestimento dos Pisos",
+      "contratada": "CORP CONSTRUÇÕES LTDA",
+      "status": "execucao",
+      "prazo": "90 dias",
+      "inicio": "13/04/2026",
+      "descricao": "Em execução. Início em 13/04/2026. Prazo contratual de 90 dias.",
+      "datas": [
+        {
+          "label": "Término",
+          "data": "2026-07-11",
+          "tipo": "neutro"
+        }
+      ],
+      "links": [],
+      "contatos_ids": [
+        14,
+        13
+      ],
+      "subfrentes": [],
+      "progresso": 0,
+      "fotos": []
+    },
+    {
+      "id": 3,
+      "titulo": "Reforma dos Sanitários",
+      "contratada": "CORP CONSTRUÇÕES LTDA",
+      "status": "execucao",
+      "prazo": "180 dias",
+      "inicio": "13/04/2026",
+      "descricao": "Em execução. Início em 13/04/2026. Prazo contratual de 180 dias.",
+      "datas": [
+        {
+          "label": "Término",
+          "data": "2026-10-09",
+          "tipo": "neutro"
+        }
+      ],
+      "links": [],
+      "contatos_ids": [
+        14,
+        13
+      ],
+      "subfrentes": [],
+      "progresso": 0,
+      "fotos": []
+    },
+    {
+      "id": 4,
+      "titulo": "Readequação da Rede Elétrica de Baixa Tensão",
+      "contratada": "",
+      "status": "analise",
+      "prazo": "",
+      "inicio": "",
+      "descricao": "Enviado para avaliação da SEF. Deadline da CODAGE: 30/04/2025. Pesquisas de preço precisam ser refeitas. Eng. Lukas em férias — substituto: Eng. Luis Rolando.",
+      "datas": [
+        {
+          "label": "Deadline CODAGE",
+          "data": "2026-04-30",
+          "tipo": "critico"
+        }
+      ],
+      "links": [
+        {
+          "label": "Concorrência Eletrônica N° 94405/2025",
+          "url": "https://cnetmobile.estaleiro.serpro.gov.br/comprasnet-web/public/compras/acompanhamento-compra?compra=10213503944052025"
+        }
+      ],
+      "contatos_ids": [
+        4
+      ],
+      "subfrentes": [],
+      "progresso": 0,
+      "fotos": []
+    },
+    {
+      "id": 5,
+      "titulo": "Reforma das Salas de Aula e Laboratórios Didáticos",
+      "contratada": "OLIVEIRA ENGENHARIA (projeto)",
+      "status": "analise",
+      "prazo": "",
+      "inicio": "",
+      "descricao": "Projeto executivo em análise na SEF (prazo de entrega do projeto estourado: 12/04). Projeto dividido em 3 frentes. SEF solicitada a priorizar análise do 2º Pavimento.",
+      "datas": [
+        {
+          "label": "Previsão de retorno da SEF",
+          "data": "2026-07-12",
+          "tipo": "alerta"
+        },
+        {
+          "label": "Entrega do Projeto Executivo (estourado)",
+          "data": "2026-04-12",
+          "tipo": "critico"
+        }
+      ],
+      "links": [],
+      "contatos_ids": [
+        2,
+        4
+      ],
+      "subfrentes": [
+        {
+          "label": "Térreo e 1º Pavimento",
+          "status": "analise"
+        },
+        {
+          "label": "2º Pavimento (prioridade)",
+          "status": "analise"
+        },
+        {
+          "label": "LIG",
+          "status": "analise"
+        }
+      ],
+      "progresso": 0,
+      "fotos": []
+    },
+    {
+      "id": 6,
+      "titulo": "PMOC e Manutenção Preventiva/Corretiva do Ar-Condicionado",
+      "contratada": "",
+      "status": "licitacao",
+      "prazo": "",
+      "inicio": "",
+      "descricao": "Recebendo propostas (prazo: 27/04). Processo 154.00003138/2026-72. Obra correlata: contratação de vidraçaria para fornecimento e troca de 13 vidros de janela (onde há equipamentos de janela a serem retirados).",
+      "datas": [
+        {
+          "label": "Prazo recebimento propostas",
+          "data": "2026-04-27",
+          "tipo": "critico"
+        }
+      ],
+      "links": [
+        {
+          "label": "Edital nº 90003/2026",
+          "url": "https://pncp.gov.br/app/editais/63025530000104/2026/001037"
+        }
+      ],
+      "contatos_ids": [
+        15,
+        11
+      ],
+      "subfrentes": [
+        {
+          "label": "PMOC + Manutenção preventiva/corretiva",
+          "status": "licitacao"
+        },
+        {
+          "label": "Vidraçaria — 13 vidros de janela",
+          "status": "orcamento"
+        }
+      ],
+      "progresso": 0,
+      "fotos": []
+    },
+    {
+      "id": 7,
+      "titulo": "Elevador da Biblioteca",
+      "contratada": "Acrópole",
+      "status": "analise",
+      "prazo": "",
+      "inicio": "",
+      "descricao": "Em análise na SEF. Acrópole: Solicitação nº 20250146",
+      "datas": [],
+      "links": [],
+      "contatos_ids": [
+        4
+      ],
+      "subfrentes": [],
+      "progresso": 0,
+      "fotos": []
+    },
+    {
+      "id": 8,
+      "titulo": "Lanchonete do CEPEGE",
+      "contratada": "",
+      "status": "orcamento",
+      "prazo": "",
+      "inicio": "",
+      "descricao": "Contratação de empresa para instalação de hidrômetro. Em busca de orçamentos.",
+      "datas": [],
+      "links": [],
+      "contatos_ids": [
+        3
+      ],
+      "subfrentes": [
+        {
+          "label": "Instalação de hidrômetro",
+          "status": "orcamento"
+        }
+      ],
+      "progresso": 0,
+      "fotos": []
+    },
+    {
+      "id": 9,
+      "titulo": "Adequação da Subestação de Energia Elétrica",
+      "contratada": "EMPREITEC CONSTRUÇÕES E MANUTENÇÕES LTDA",
+      "status": "final",
+      "prazo": "",
+      "inicio": "",
+      "descricao": "Entrega provisória realizada em 06/03/2026. Aguardando Recebimento Definitivo programado para 04/06/2025.",
+      "datas": [
+        {
+          "label": "Recebimento Definitivo",
+          "data": "2026-06-04",
+          "tipo": "alerta"
+        },
+        {
+          "label": "Entrega Provisória",
+          "data": "2026-03-06",
+          "tipo": "ok"
+        }
+      ],
+      "links": [],
+      "contatos_ids": [
+        7
+      ],
+      "subfrentes": [],
+      "progresso": 100,
+      "fotos": [
+        {
+          "nome": "20260214_152706.jpg",
+          "url": "https://i.imgur.com/yNJd6bQ.jpeg",
+          "deleteHash": "KfMkShmK2xDsrEa"
+        },
+        {
+          "nome": "20260214_152744.jpg",
+          "url": "https://i.imgur.com/UvbU7L2.jpeg",
+          "deleteHash": "eXxkvbRyvDeL4tx"
+        },
+        {
+          "nome": "20260218_112743.jpg",
+          "url": "https://i.imgur.com/KFIyYIn.jpeg",
+          "deleteHash": "YLtimT3I3ecgj48"
+        },
+        {
+          "nome": "20251028_145730.jpg",
+          "url": "https://i.imgur.com/SXr3Ja6.jpeg",
+          "deleteHash": "eRMCL8XO0aloaPN"
+        },
+        {
+          "nome": "20260218_112808.jpg",
+          "url": "https://i.imgur.com/jpSjwAs.jpeg",
+          "deleteHash": "3jCuXfX6C1V82eB"
+        },
+        {
+          "nome": "20251028_125807.jpg",
+          "url": "https://i.imgur.com/pfPbJGJ.jpeg",
+          "deleteHash": "jeHLcWcCRF2v4Fh"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "titulo": "Reforma da Copa e Vestiários das Empresas Terceirizadas",
+      "contratada": "PLANED COMERCIO E SERVIÇOS EIRELI EPP",
+      "status": "concluida",
+      "prazo": "",
+      "inicio": "19/02/2025",
+      "descricao": "Reforma concluída. Recebimento Definitivo realizado em 16/03/2026.",
+      "datas": [
+        {
+          "label": "Conclusão",
+          "data": "2025-12-11",
+          "tipo": "ok"
+        },
+        {
+          "label": "Recebimento Provisório",
+          "data": "2025-12-16",
+          "tipo": "ok"
+        },
+        {
+          "label": "Recebimento Definitivo",
+          "data": "2026-03-16",
+          "tipo": "ok"
+        }
+      ],
+      "links": [],
+      "contatos_ids": [],
+      "subfrentes": [],
+      "progresso": 100,
+      "fotos": []
+    }
+  ],
+  "contatos": [
+    {
+      "id": 8,
+      "nome": "Marly Babinski",
+      "cargo": "Diretora",
+      "tel": "30914274",
+      "email": "igc@usp.br",
+      "empresa": "IGc/USP"
+    },
+    {
+      "id": 3,
+      "nome": "Iolanda Nakasima",
+      "cargo": "Assistente Técnica Administrativa",
+      "tel": "30914129",
+      "email": "atadigc@usp.br",
+      "empresa": "IGc/USP"
+    },
+    {
+      "id": 15,
+      "nome": "Solange Moni",
+      "cargo": "Divisão Financeira - Material",
+      "tel": "30913963",
+      "email": "comprasigc@usp.br",
+      "empresa": "IGc/USP"
+    },
+    {
+      "id": 11,
+      "nome": "Brenno Machado",
+      "cargo": "Divisão Financeira - Material",
+      "tel": "30914232",
+      "email": "comprasigc@usp.br",
+      "empresa": "IGc/USP"
+    },
+    {
+      "id": 10,
+      "nome": "José Eduardo da Silva",
+      "cargo": "Serviço de Verificação e Acompanhamento de Obras",
+      "tel": "30913951",
+      "email": "obrasigc@usp.br",
+      "empresa": "IGc/USP"
+    },
+    {
+      "id": 12,
+      "nome": "John Carlos Chrispe da Silva",
+      "cargo": "Técnico de Manutenção e Obras",
+      "tel": "",
+      "email": "",
+      "empresa": "IGc/USP"
+    },
+    {
+      "id": 4,
+      "nome": "Thiago Silva",
+      "cargo": "Chefe de Divisão de Engenharia e Obras",
+      "tel": "",
+      "email": "thiago.sef@usp.br",
+      "empresa": "SEF/USP"
+    },
+    {
+      "id": 13,
+      "nome": "Vando Biondo Jr",
+      "cargo": "Engenheiro Civil",
+      "tel": "",
+      "email": "vandobiondo@hotmail.com",
+      "empresa": "SEF/USP"
+    },
+    {
+      "id": 1,
+      "nome": "Cintia",
+      "cargo": "Representante comercial",
+      "tel": "",
+      "email": "cintia@scopusconstrutora.com.br",
+      "empresa": "SCOPUS CONSTRUTORA & INCORPORADORA LTDA"
+    },
+    {
+      "id": 14,
+      "nome": "Eric Siqueira",
+      "cargo": "Sócio Proprietário",
+      "tel": "",
+      "email": "contato@corpengenharia.com",
+      "empresa": "CORP CONSTRUÇÕES LTDA"
+    },
+    {
+      "id": 7,
+      "nome": "Samuel",
+      "cargo": "Responsável técnico",
+      "tel": "",
+      "email": "samuel.ferreira@empreitec.com.br",
+      "empresa": "EMPREITEC CONSTRUÇÕES E MANUTENÇÕES LTDA"
+    },
+    {
+      "id": 2,
+      "nome": "Leandro Oliveira",
+      "cargo": "Responsável técnico",
+      "tel": "",
+      "email": "leandro@oliveiraeng.com.br",
+      "empresa": "OLIVEIRA ENGENHARIA"
+    }
+  ],
+  "historico": [
+    {
+      "data": "16/03/2026",
+      "titulo": "Reforma da Copa e Vestiários das Empresas Terceirizadas — Concluída",
+      "descricao": "Contratada: PLANED COMERCIO E SERVIÇOS EIRELI EPP. Início: 19/02/2025. Conclusão: 11/12/2025. Rec. Provisório: 16/12/2025. Rec. Definitivo: 16/03/2026."
+    },
+    {
+      "data": "06/03/2025",
+      "titulo": "Subestação — Entrega Provisória realizada",
+      "descricao": "EMPREITEC concluiu fase de instalação. Entrega provisória aceita em 06/03/2025."
+    },
+    {
+      "data": "13/04/2025",
+      "titulo": "Pisos e Banheiros — Início das obras",
+      "descricao": "Ambas as frentes iniciadas na mesma data. Prazo: Pisos 90 dias / Banheiros 180 dias."
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+<div class="mo" id="pmo" onclick="if(event.target===this)this.classList.remove('open')">
+  <img id="pmo-img">
+</div>
+
+<div class="app">
+  <div class="hdr">
+    <div class="hdrl">
+      <div class="logo">
+        <svg viewBox="0 0 22 22"><rect x="1" y="1" width="9" height="9" rx="1.5"/><rect x="12" y="1" width="9" height="9" rx="1.5"/><rect x="1" y="12" width="9" height="9" rx="1.5"/><rect x="12" y="12" width="9" height="9" rx="1.5" opacity=".45"/></svg>
+      </div>
+      <div>
+        <div class="htitle">Painel de Obras — IGc/USP</div>
+        <div class="hsub">Serviço de Verificação e Acompanhamento · Instituto de Geociências</div>
+      </div>
+    </div>
+    <div class="hdrr">
+      <span id="mbadge" class="mbadge mbv">Visualização</span>
+      <button id="lockbtn" class="mbtn" onclick="toggleEditor()" title="Acesso de editor">🔒</button>
+      <button id="syncbtn" class="mbtn" onclick="syncServer()" title="Recarregar do servidor">🔄</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab act" onclick="setTab('obras',this)">Frentes ativas</div>
+    <div class="tab" onclick="setTab('contatos',this)">Contatos</div>
+    <div class="tab" onclick="setTab('historico',this)">Histórico</div>
+  </div>
+
+  <div id="tab-obras">
+    <div id="nfbar" style="display:none;margin-bottom:10px;text-align:right">
+      <button class="savbtn" style="background:var(--vd)" onclick="novaFrente()">+ Nova frente</button>
+    </div>
+    <div class="grid" id="cgrid"></div>
+    <div id="detail"></div>
+  </div>
+  <div id="tab-contatos" style="display:none"></div>
+  <div id="tab-historico" style="display:none"></div>
+</div>
+
+<script>
+// ── STATUS MAP ──────────────────────────────────────────────
+const SM = {
+  aguard:    {l:'Aguardando',           c:'bag'},
+  analise:   {l:'Em análise',           c:'bal'},
+  assinatura:{l:'Assinatura de contrato',c:'bal'},
+  concluida: {l:'Concluída',            c:'bok'},
+  execucao:  {l:'Em execução',          c:'bem'},
+  final:     {l:'Fase final',           c:'bfi'},
+  licitacao: {l:'Licitação',            c:'bal'},
+  orcamento: {l:'Orçamento',            c:'bag'},
+  planejamento:{l:'Planejamento',       c:'bag'}
+};
+const STATUS_OPTS = Object.keys(SM);
+
+// ── AUTH ────────────────────────────────────────────────────
+const EDITOR_HASH = '0b4e88e7bd7944c36c24265064bbb83c1004749448c3429af11242f6de91a5df';
+async function sha256(msg){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(msg));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function toggleEditor(){
+  if(mode==='editor'){
+    mode='viewer'; sessionStorage.removeItem('igc_ed');
+    applyMode(); toast('Modo edição desativado');
+  } else {
+    const pwd=prompt('Senha de editor:');
+    if(!pwd) return;
+    sha256(pwd).then(h=>{
+      if(h===EDITOR_HASH){
+        mode='editor'; sessionStorage.setItem('igc_ed','1');
+        applyMode(); toast('Acesso de editor ativado');
+      } else { toast('Senha incorreta'); }
+    });
+  }
+}
+function applyMode(){
+  const b=document.getElementById('mbadge');
+  const l=document.getElementById('lockbtn');
+  const n=document.getElementById('nfbar');
+  b.textContent=mode==='editor'?'Modo Edição':'Visualização';
+  b.className='mbadge '+(mode==='editor'?'mbe':'mbv');
+  l.textContent=mode==='editor'?'🔓':'🔒';
+  n.style.display=mode==='editor'?'block':'none';
+  renderAll();
+}
+
+// ── DEFAULT DATA ─────────────────────────────────────────────
+function defaultData(){
+  try{
+    return JSON.parse(document.getElementById('dados').textContent);
+  }catch(e){ return {obras:[],contatos:[],historico:[]}; }
+}
+
+// ── STATE ────────────────────────────────────────────────────
+let DATA = null;
+let mode = 'viewer';
+let selId = null;
+
+// ── STORAGE ─────────────────────────────────────────────────
+function loadData(){
+  try{
+    const s=localStorage.getItem('igc_obras_v3');
+    if(s) return JSON.parse(s);
+  }catch(e){}
+  return defaultData();
+}
+function saveLocal(){
+  try{ localStorage.setItem('igc_obras_v3',JSON.stringify(DATA)); }catch(e){}
+}
+function saveData(){
+  saveLocal();
+  downloadHTML();
+}
+async function downloadHTML(){
+  // Fetch the original HTML from the server (not outerHTML which browser corrupts)
+  let src;
+  try{
+    const resp = await fetch(location.href + '?nc=' + Date.now());
+    src = await resp.text();
+  }catch(e){
+    toast('⚠️ Erro ao buscar HTML do servidor: ' + e.message);
+    return;
+  }
+  // Replace the <script id="dados"> content with current DATA
+  const dataStr = JSON.stringify(DATA, null, 2);
+  const updated = src.replace(
+    /(<script[^>]+id="dados"[^>]*>)[\s\S]*?(<\/script>)/,
+    (_, open, close) => open + '\n' + dataStr + '\n' + close
+  );
+  // Verify replacement worked
+  if(!updated.includes(dataStr.slice(0,50))){
+    toast('⚠️ Não foi possível atualizar os dados no HTML.');
+    return;
+  }
+  const blob = new Blob([updated], {type:'text/html;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'painel_obras_igc.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('💾 HTML atualizado baixado! Suba no Netlify para publicar.');
 }
 
 // ── SYNC ─────────────────────────────────────────────────────
