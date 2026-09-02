@@ -1,0 +1,471 @@
+{
+  "atualizado_em": "2026-09-01",
+  "editor": "John Carlos Chrispe da Silva",
+  "obras": [
+    {
+      "id": 1,
+      "titulo": "Reforma da Cobertura",
+      "contratada": "SCOPUS CONSTRUTORA & INCORPORADORA LTDA",
+      "status": "execucao",
+      "inicio": "2026-07-07",
+      "prazoDias": 360,
+      "aditivosDias": 0,
+      "termino": "2027-07-02",
+      "descricao": "Fiscal indicado pela SEF: Engº Michael Dutra Santos.",
+      "progresso": 1,
+      "marcos": [
+        {
+          "label": "Assinatura do contrato",
+          "data": "2026-04-23",
+          "concluido": true
+        },
+        {
+          "label": "Reunião de início de obras",
+          "data": "2026-05-08",
+          "concluido": true
+        },
+        {
+          "label": "Ordem de início das obras",
+          "data": "2026-06-22",
+          "concluido": true
+        }
+      ],
+      "links": [],
+      "contatos_ids": [
+        1,
+        16
+      ],
+      "subfrentes": [],
+      "fotos": []
+    },
+    {
+      "id": 2,
+      "titulo": "Reforma do Revestimento dos Pisos",
+      "contratada": "CORP CONSTRUÇÕES LTDA",
+      "status": "execucao",
+      "inicio": "2026-04-13",
+      "prazoDias": 90,
+      "aditivosDias": 90,
+      "termino": "2026-10-09",
+      "descricao": "Prazo contratual original de 90 dias, prorrogado por mais 90 dias.",
+      "progresso": 13,
+      "marcos": [],
+      "links": [],
+      "contatos_ids": [
+        14,
+        13
+      ],
+      "subfrentes": [
+        {
+          "label": "Assistência Técnica Para Fiscalização De Obras",
+          "status": "execucao"
+        }
+      ],
+      "fotos": [
+        {
+          "nome": "obra pisos 02.jpeg",
+          "url": "https://i.imgur.com/oUuFABA.jpeg",
+          "deleteHash": "5UWrMVCqqWJjQ4i"
+        },
+        {
+          "nome": "obra pisos 01.jpeg",
+          "url": "https://i.imgur.com/ByH7wvB.jpeg",
+          "deleteHash": "x0XWgtr05oLsYaf"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "titulo": "Reforma dos Sanitários",
+      "contratada": "CORP CONSTRUÇÕES LTDA",
+      "status": "execucao",
+      "inicio": "2026-04-13",
+      "prazoDias": 180,
+      "aditivosDias": 0,
+      "termino": "2026-10-09",
+      "descricao": "Prazo contratual de 180 dias.",
+      "progresso": 12,
+      "marcos": [],
+      "links": [],
+      "contatos_ids": [
+        14,
+        13
+      ],
+      "subfrentes": [
+        {
+          "label": "Assistência Técnica Para Fiscalização De Obras",
+          "status": "execucao"
+        }
+      ],
+      "fotos": [
+        {
+          "nome": "obra banheiros 01.jpeg",
+          "url": "https://i.imgur.com/xNP2aZA.jpeg",
+          "deleteHash": "DIrXYoLxXVHThGW"
+        },
+        {
+          "nome": "obra banheiros 02.jpeg",
+          "url": "https://i.imgur.com/vH6cvOc.jpeg",
+          "deleteHash": "TVM7puaUAr697fw"
+        },
+        {
+          "nome": "obra banheiros 03.jpeg",
+          "url": "https://i.imgur.com/aUD7D6I.jpeg",
+          "deleteHash": "SM1CIgofkWYwplu"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "titulo": "Readequação da Rede Elétrica de Baixa Tensão",
+      "contratada": "",
+      "status": "licitacao",
+      "inicio": "",
+      "prazoDias": null,
+      "aditivosDias": 0,
+      "termino": "",
+      "descricao": "Aguardando republicação da licitação (Concorrência Eletrônica).",
+      "progresso": 0,
+      "marcos": [],
+      "links": [],
+      "contatos_ids": [
+        4
+      ],
+      "subfrentes": [],
+      "fotos": []
+    },
+    {
+      "id": 5,
+      "titulo": "Reforma das Salas de Aula e Laboratórios Didáticos",
+      "contratada": "OLIVEIRA ENGENHARIA (projeto)",
+      "status": "analise",
+      "inicio": "",
+      "prazoDias": null,
+      "aditivosDias": 0,
+      "termino": "",
+      "descricao": "Projeto executivo dividido em 3 frentes. Em análise na SEF.",
+      "progresso": 66,
+      "marcos": [
+        {
+          "label": "Entrega do Projeto Executivo",
+          "data": "2026-04-12",
+          "concluido": true
+        }
+      ],
+      "links": [],
+      "contatos_ids": [
+        2,
+        4
+      ],
+      "subfrentes": [
+        {
+          "label": "Térreo e 1º Pavimento",
+          "status": "analise"
+        },
+        {
+          "label": "2º Pavimento",
+          "status": "analise"
+        },
+        {
+          "label": "LIG",
+          "status": "analise"
+        }
+      ],
+      "fotos": []
+    },
+    {
+      "id": 6,
+      "titulo": "PMOC e Manutenção Preventiva/Corretiva do Ar-Condicionado",
+      "contratada": "",
+      "status": "licitacao",
+      "inicio": "",
+      "prazoDias": null,
+      "aditivosDias": 0,
+      "termino": "",
+      "descricao": "Pregão Eletrônico nº 92/2026 em andamento.",
+      "progresso": 0,
+      "marcos": [
+        {
+          "label": "Fim de recebimento de propostas",
+          "data": "2026-07-30",
+          "concluido": true
+        }
+      ],
+      "links": [
+        {
+          "label": "Edital nº 92/2026",
+          "url": "https://pncp.gov.br/app/editais/63025530000104/2026/002531"
+        }
+      ],
+      "contatos_ids": [],
+      "subfrentes": [
+        {
+          "label": "PMOC + Manutenção preventiva/corretiva",
+          "status": "licitacao"
+        },
+        {
+          "label": "Vidraçaria — 13 vidros de janela",
+          "status": "orcamento"
+        }
+      ],
+      "fotos": []
+    },
+    {
+      "id": 7,
+      "titulo": "Elevador da Biblioteca",
+      "contratada": "Acrópole",
+      "status": "analise",
+      "inicio": "",
+      "prazoDias": null,
+      "aditivosDias": 0,
+      "termino": "",
+      "descricao": "Em análise na SEF. Acrópole: Solicitação nº 20250146",
+      "progresso": 0,
+      "marcos": [],
+      "links": [],
+      "contatos_ids": [
+        4
+      ],
+      "subfrentes": [],
+      "fotos": []
+    },
+    {
+      "id": 8,
+      "titulo": "Lanchonete",
+      "contratada": "",
+      "status": "orcamento",
+      "inicio": "",
+      "prazoDias": null,
+      "aditivosDias": 0,
+      "termino": "",
+      "descricao": "Contratação de empresa para instalação de hidrômetro. Em busca de orçamentos.",
+      "progresso": 0,
+      "marcos": [],
+      "links": [],
+      "contatos_ids": [
+        3
+      ],
+      "subfrentes": [
+        {
+          "label": "Instalação de hidrômetro",
+          "status": "orcamento"
+        }
+      ],
+      "fotos": []
+    },
+    {
+      "id": 9,
+      "titulo": "Adequação da Subestação de Energia Elétrica",
+      "contratada": "EMPREITEC CONSTRUÇÕES E MANUTENÇÕES LTDA",
+      "status": "concluida",
+      "inicio": "2025-08-25",
+      "prazoDias": 120,
+      "aditivosDias": 0,
+      "termino": "",
+      "descricao": "Obra concluída. Recebimento definitivo em 04/06/2026.",
+      "progresso": 100,
+      "marcos": [
+        {
+          "label": "Entrega Provisória",
+          "data": "2026-03-06",
+          "concluido": true
+        },
+        {
+          "label": "Recebimento Definitivo",
+          "data": "2026-06-04",
+          "concluido": true
+        }
+      ],
+      "links": [],
+      "contatos_ids": [
+        7
+      ],
+      "subfrentes": [],
+      "fotos": [
+        {
+          "nome": "20260214_152706.jpg",
+          "url": "https://i.imgur.com/yNJd6bQ.jpeg",
+          "deleteHash": "KfMkShmK2xDsrEa"
+        },
+        {
+          "nome": "20260214_152744.jpg",
+          "url": "https://i.imgur.com/UvbU7L2.jpeg",
+          "deleteHash": "eXxkvbRyvDeL4tx"
+        },
+        {
+          "nome": "20260218_112743.jpg",
+          "url": "https://i.imgur.com/KFIyYIn.jpeg",
+          "deleteHash": "YLtimT3I3ecgj48"
+        },
+        {
+          "nome": "20251028_145730.jpg",
+          "url": "https://i.imgur.com/SXr3Ja6.jpeg",
+          "deleteHash": "eRMCL8XO0aloaPN"
+        },
+        {
+          "nome": "20260218_112808.jpg",
+          "url": "https://i.imgur.com/jpSjwAs.jpeg",
+          "deleteHash": "3jCuXfX6C1V82eB"
+        },
+        {
+          "nome": "20251028_125807.jpg",
+          "url": "https://i.imgur.com/pfPbJGJ.jpeg",
+          "deleteHash": "jeHLcWcCRF2v4Fh"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "titulo": "Reforma da Copa e Vestiários das Empresas Terceirizadas",
+      "contratada": "PLANED COMERCIO E SERVIÇOS EIRELI EPP",
+      "status": "concluida",
+      "inicio": "2025-02-19",
+      "prazoDias": null,
+      "aditivosDias": 0,
+      "termino": "",
+      "descricao": "Reforma concluída. Recebimento Definitivo realizado em 16/03/2026.",
+      "progresso": 100,
+      "marcos": [
+        {
+          "label": "Conclusão",
+          "data": "2025-12-11",
+          "concluido": true
+        },
+        {
+          "label": "Recebimento Provisório",
+          "data": "2025-12-16",
+          "concluido": true
+        },
+        {
+          "label": "Recebimento Definitivo",
+          "data": "2026-03-16",
+          "concluido": true
+        }
+      ],
+      "links": [],
+      "contatos_ids": [],
+      "subfrentes": [],
+      "fotos": []
+    }
+  ],
+  "contatos": [
+    {
+      "id": 8,
+      "nome": "Marly Babinski",
+      "cargo": "Diretora",
+      "tel": "30914274",
+      "email": "igc@usp.br",
+      "empresa": "IGc/USP"
+    },
+    {
+      "id": 3,
+      "nome": "Iolanda Nakasima",
+      "cargo": "Assistente Técnica Administrativa",
+      "tel": "30914129",
+      "email": "atadigc@usp.br",
+      "empresa": "IGc/USP"
+    },
+    {
+      "id": 11,
+      "nome": "Brenno Machado",
+      "cargo": "Divisão Financeira - Material",
+      "tel": "30914232",
+      "email": "comprasigc@usp.br",
+      "empresa": "IGc/USP"
+    },
+    {
+      "id": 10,
+      "nome": "José Eduardo da Silva",
+      "cargo": "Divisão Financeira - Material",
+      "tel": "30913951",
+      "email": "comprasigc@usp.br",
+      "empresa": "IGc/USP"
+    },
+    {
+      "id": 12,
+      "nome": "John Carlos Chrispe da Silva",
+      "cargo": "Serviço de Acompanhamento e Verificação de Obras",
+      "tel": "26481794",
+      "email": "obrasigc@usp.br",
+      "empresa": "IGc/USP"
+    },
+    {
+      "id": 4,
+      "nome": "Thiago Silva",
+      "cargo": "Chefe de Divisão de Engenharia e Obras",
+      "tel": "",
+      "email": "thiago.sef@usp.br",
+      "empresa": "SEF/USP"
+    },
+    {
+      "id": 13,
+      "nome": "Vando Biondo Jr",
+      "cargo": "Engenheiro Civil",
+      "tel": "",
+      "email": "vandobiondo@hotmail.com",
+      "empresa": "SEF/USP"
+    },
+    {
+      "id": 16,
+      "nome": "Michael Dutra Santos",
+      "cargo": "Engenheiro Civil - Serviço Técnico de Fiscalização de Obras",
+      "tel": "",
+      "email": "michael.dutra@usp.br",
+      "empresa": "SEF/USP"
+    },
+    {
+      "id": 1,
+      "nome": "Cintia",
+      "cargo": "Representante comercial",
+      "tel": "",
+      "email": "cintia@scopusconstrutora.com.br",
+      "empresa": "SCOPUS CONSTRUTORA & INCORPORADORA LTDA"
+    },
+    {
+      "id": 14,
+      "nome": "Eric Siqueira",
+      "cargo": "Sócio Proprietário",
+      "tel": "",
+      "email": "contato@corpengenharia.com",
+      "empresa": "CORP CONSTRUÇÕES LTDA"
+    },
+    {
+      "id": 7,
+      "nome": "Samuel",
+      "cargo": "Responsável técnico",
+      "tel": "",
+      "email": "samuel.ferreira@empreitec.com.br",
+      "empresa": "EMPREITEC CONSTRUÇÕES E MANUTENÇÕES LTDA"
+    },
+    {
+      "id": 2,
+      "nome": "Leandro Oliveira",
+      "cargo": "Responsável técnico",
+      "tel": "",
+      "email": "leandro@oliveiraeng.com.br",
+      "empresa": "OLIVEIRA ENGENHARIA"
+    }
+  ],
+  "historico": [
+    {
+      "data": "2026-06-04",
+      "titulo": "Subestação — Recebimento Definitivo",
+      "descricao": "EMPREITEC CONSTRUÇÕES E MANUTENÇÕES LTDA. Entrega provisória em 06/03/2026 e recebimento definitivo em 04/06/2026."
+    },
+    {
+      "data": "2026-04-13",
+      "titulo": "Pisos e Sanitários — Início das obras",
+      "descricao": "Ambas as frentes iniciadas na mesma data pela CORP CONSTRUÇÕES LTDA. Prazo: Pisos 90 dias (prorrogado por mais 90) / Sanitários 180 dias."
+    },
+    {
+      "data": "2026-03-16",
+      "titulo": "Reforma da Copa e Vestiários das Empresas Terceirizadas — Concluída",
+      "descricao": "Contratada: PLANED COMERCIO E SERVIÇOS EIRELI EPP. Início: 19/02/2025. Conclusão: 11/12/2025. Rec. Provisório: 16/12/2025. Rec. Definitivo: 16/03/2026."
+    },
+    {
+      "data": "2026-03-06",
+      "titulo": "Subestação — Entrega Provisória realizada",
+      "descricao": "EMPREITEC concluiu a fase de instalação. Entrega provisória aceita em 06/03/2026."
+    }
+  ]
+}
