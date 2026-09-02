@@ -1,5 +1,5 @@
 {
-  "atualizado_em": "2026-09-01",
+  "atualizado_em": "2026-09-02",
   "editor": "John Carlos Chrispe da Silva",
   "obras": [
     {
@@ -176,8 +176,8 @@
     {
       "id": 6,
       "titulo": "PMOC e Manutenção Preventiva/Corretiva do Ar-Condicionado",
-      "contratada": "",
-      "status": "licitacao",
+      "contratada": "ITOPRO ENGENHARIA DA CLIMATIZACAO LTDA",
+      "status": "assinatura",
       "inicio": "",
       "prazoDias": null,
       "aditivosDias": 0,
@@ -201,7 +201,7 @@
       "subfrentes": [
         {
           "label": "PMOC + Manutenção preventiva/corretiva",
-          "status": "licitacao"
+          "status": "assinatura"
         },
         {
           "label": "Vidraçaria — 13 vidros de janela",
